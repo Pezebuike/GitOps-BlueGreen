@@ -1,5 +1,5 @@
 # Modern DevOps: Integrating Branching Strategy with GitOps and Blue-Green Deployments
-## ![image](https://github.com/user-attachments/assets/d6a81960-f551-4127-8d06-1e8837b9bd95)
+![image](https://github.com/user-attachments/assets/d6a81960-f551-4127-8d06-1e8837b9bd95)
 
 
 ## ![GitOps with Blue-Green Deployments](assets/header-image.png)
