@@ -1,6 +1,7 @@
 # Modern DevOps: Integrating Branching Strategy with GitOps and Blue-Green Deployments
+![image](https://github.com/user-attachments/assets/d6a81960-f551-4127-8d06-1e8837b9bd95)
 
-*By Claude Anthropic*
+
 
 In today's fast-paced software development world, organizations need deployment strategies that are both agile and reliable. This article explores a comprehensive approach that combines structured branching strategies with GitOps principles and blue-green deployments to create a robust, automated, and secure delivery pipeline.
 
