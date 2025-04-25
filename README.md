@@ -5,7 +5,7 @@
 ![GitOps with Blue-Green Deployments](assets/header-image.png)
 
 ## Branching Strategy
-![Branching Strategy](assets/branching-strategy.png)
+## ![Branching Strategy](assets/branching-strategy.png)
 
 ## CI/CD Pipeline Diagram
 
