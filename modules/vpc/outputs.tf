@@ -43,10 +43,6 @@ output "availability_zones" {
   value       = [for subnet in aws_subnet.public_subnet : subnet.availability_zone]
 }
 
-output "region" {
-  description = "AWS region"
-  value       = var.region
-}
 
 output "environment" {
   description = "Environment name"
