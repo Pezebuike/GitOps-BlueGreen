@@ -18,11 +18,6 @@ output "public_subnets" {
 }
 
 
-
-output "internet_gateway" {
-  value = aws_internet_gateway.internet_gateway
-}
-
 output "public_subnet_cidrs" {
   description = "List of CIDR blocks of public subnets"
   value       = aws_subnet.public_subnet[*].cidr_block
