@@ -3,9 +3,7 @@ provider "aws" {
 }
 
 module "eks" {
-   # Using GitHub source with specific commit hash for security and version control
-  # This ensures that the module is always pulled from a specific commit, providing stability and predictability.
-  source = "github.com/terraform-aws-modules/terraform-aws-eks?ref=3a8a5cb675b07aea68321a06b1c261d4128ed270"
+  source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.31"
 
   cluster_name    = "${var.project_name}-${var.environment}-eks-cluster"
@@ -22,9 +20,9 @@ module "eks" {
   vpc_id     = var.vpc_id
   subnet_ids = var.subnet_ids
   
-  tags = {
+  tags = merge({
     Name        = "${var.project_name}-${var.environment}-eks-cluster"
     Environment = var.environment
     Terraform   = "true"
-  }
+  }, var.tags)
 }

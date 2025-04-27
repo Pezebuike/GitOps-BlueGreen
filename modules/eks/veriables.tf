@@ -23,14 +23,12 @@ variable "eks_managed_node_groups" {
 variable "project_name" {
     description = "Name of the project"
     type        = string
-    default     = {}
-
     }
 
 variable "environment" {
     description = "Environment name (e.g., dev, prod)"
     type        = string
-    default     = {}
+
     }
 variable "tags" {
     description = "Tags to apply to the resources"
@@ -49,6 +47,6 @@ variable "subnet_ids" {
     }
 variable "region" {
     description = "AWS region where the EKS cluster will be created"
-    type        = strings
+    type        = string
     }
   
