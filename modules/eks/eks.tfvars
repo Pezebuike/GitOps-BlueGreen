@@ -1,5 +1,5 @@
-project_name = "infra" # Replace with your project name
-environment = "dev" # Replace with your environment name (e.g., dev, prod)
+project_name = "infra" 
+environment = "dev" 
 vpc_id = "vpc-0b9e56fb5f79efb4c" # Replace with your VPC ID
 region = "eu-west-2" # Replace with your desired AWS region
 subnet_ids = [ "subnet-054725bc8e7493015","subnet-036be5e11dfdfb73e" ]
