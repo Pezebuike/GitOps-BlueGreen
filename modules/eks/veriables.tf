@@ -38,7 +38,7 @@ variable "tags" {
 variable "vpc_id" {
     description = "VPC ID where the EKS cluster will be created"
     type        = string
-    default     = null
+    default     = ""
     }
 variable "subnet_ids" {
     description = "List of subnet IDs where the EKS cluster will be created"
