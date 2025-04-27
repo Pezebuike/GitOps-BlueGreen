@@ -6,6 +6,11 @@ variable "cluster_name" {
 variable "cluster_version" {
     description = "Version of the EKS cluster"
     type        = string
+    default     = "1.31"
+    validation {
+        condition     = can(regex("^[0-9]+\\.[0-9]+$", var.cluster_version))
+        error_message = "Cluster version must be in the format X.Y (e.g., 1.31)"
+    }
     }
 
 
@@ -38,7 +43,7 @@ variable "tags" {
 variable "vpc_id" {
     description = "VPC ID where the EKS cluster will be created"
     type        = string
-    default     = ""
+    default     = "vpc-0b9e56fb5f79efb4c"
     }
 variable "subnet_ids" {
     description = "List of subnet IDs where the EKS cluster will be created"
