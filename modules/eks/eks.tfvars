@@ -13,8 +13,4 @@ eks_managed_node_groups = {
     desired_size   = 2
   }
 }
-tags = {
-  Name        = "${var.project_name}-${var.environment}-eks-cluster"
-  Environment = var.environment
-  Terraform   = "true"
-}
+
