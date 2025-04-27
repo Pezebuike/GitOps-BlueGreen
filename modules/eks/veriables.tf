@@ -1,0 +1,54 @@
+variable "cluster_name" {
+    description = "Name of the EKS cluster"
+    type        = string
+    }
+
+variable "cluster_version" {
+    description = "Version of the EKS cluster"
+    type        = string
+    }
+
+
+variable "eks_managed_node_groups" {
+    description = "Configuration for EKS managed node groups"
+    type        = map(object({
+        instance_types = list(string)
+        min_size       = number
+        max_size       = number
+        desired_size   = number
+    }))
+    default     = {}
+    }   
+
+variable "project_name" {
+    description = "Name of the project"
+    type        = string
+    default     = {}
+
+    }
+
+variable "environment" {
+    description = "Environment name (e.g., dev, prod)"
+    type        = string
+    default     = {}
+    }
+variable "tags" {
+    description = "Tags to apply to the resources"
+    type        = map(string)
+    default     = {}
+    }
+variable "vpc_id" {
+    description = "VPC ID where the EKS cluster will be created"
+    type        = string
+    default     = null
+    }
+variable "subnet_ids" {
+    description = "List of subnet IDs where the EKS cluster will be created"
+    type        = list(string)
+    default     = []
+    }
+variable "region" {
+    description = "AWS region where the EKS cluster will be created"
+    type        = strings
+    }
+  
