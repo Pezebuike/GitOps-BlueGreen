@@ -78,6 +78,28 @@ helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 # Update repositories
 helm repo update
 
+# Configure kubectl to connect to the EKS cluster
+echo "Configuring kubectl to connect to EKS cluster..."
+
+# Check if AWS CLI is installed
+if ! command -v aws &> /dev/null; then
+    echo "AWS CLI not found. Installing AWS CLI..."
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    unzip awscliv2.zip
+    sudo ./aws/install
+fi
+
+# Get EKS cluster name from Terraform output or environment variable
+EKS_CLUSTER_NAME=${EKS_CLUSTER_NAME:-"k8s-eks-cluster"}
+REGION=${AWS_REGION:-"us-east-1"}  # Default to us-east-1 if not set
+
+echo "Updating kubeconfig for EKS cluster: $EKS_CLUSTER_NAME in region: $REGION"
+aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$REGION"
+
+# Verify connection to the cluster
+echo "Verifying connection to the EKS cluster..."
+kubectl cluster-info
+
 # Check if the Kubernetes cluster is accessible before installing ingress-nginx
 echo "Checking Kubernetes cluster connectivity..."
 if ! kubectl cluster-info &> /dev/null; then
@@ -120,6 +142,25 @@ kubectl get svc -n ingress-nginx
 echo ""
 echo "- Deployments:"
 kubectl get deployments -n ingress-nginx
+
+echo ""
+echo "To verify ingress-nginx is working properly, you can run:"
+echo "kubectl get all -n ingress-nginx"
+echo ""
+echo "To get the external IP of your ingress controller:"
+echo "kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}'"
+echo ""
+echo "To test with a sample application, create a test deployment and ingress resource:"
+echo "kubectl create deployment demo --image=httpd --port=80"
+echo "kubectl expose deployment demo"
+echo "kubectl create ingress demo --class=nginx --rule=\"demo.localdev.me/*=demo:80\""
+echo ""
+echo "Then add the ingress IP to your /etc/hosts file and access demo.localdev.me in your browser"
+
+echo ""
+echo "Installation completed successfully!"
+
+
 
 # echo ""
 # echo "To verify ingress-nginx is working properly, you can run:"
