@@ -65,7 +65,7 @@ if [ -n "$EXTERNAL_IP" ]; then
   # Test with curl and Host header
   echo "Running: curl -s -o /dev/null -w '%{http_code}' -H 'Host: nginx-test.example.com' http://$EXTERNAL_IP"
   HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' -H "Host: nginx-test.example.com" http://$EXTERNAL_IP --connect-timeout 10 || echo "Failed")
-  
+ 
   if [ "$HTTP_CODE" = "200" ]; then
     echo "✅ Successfully connected to test application through ingress (HTTP 200)"
     RESULT=0

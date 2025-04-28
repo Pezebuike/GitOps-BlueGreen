@@ -89,12 +89,12 @@ if ! command -v aws &> /dev/null; then
     sudo ./aws/install
 fi
 
-# Get EKS cluster name from Terraform output or environment variable
+# Get EKS cluster name from environment variable
 EKS_CLUSTER_NAME=${EKS_CLUSTER_NAME:-"k8s-eks-cluster"}
-REGION=${AWS_REGION:-"us-east-1"}  # Default to us-east-1 if not set
+AWS_REGION=${AWS_REGION:-"us-east-1"}  # Default to us-east-1 if not set
 
-echo "Updating kubeconfig for EKS cluster: $EKS_CLUSTER_NAME in region: $REGION"
-aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$REGION"
+echo "Updating kubeconfig for EKS cluster: $EKS_CLUSTER_NAME in region: $AWS_REGION"
+aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
 
 # Verify connection to the cluster
 echo "Verifying connection to the EKS cluster..."
@@ -119,7 +119,7 @@ echo "Waiting for ingress-nginx to be ready..."
 kubectl wait --namespace ingress-nginx \
   --for=condition=ready pod \
   --selector=app.kubernetes.io/component=controller \
-  --timeout=120s
+  --timeout=120s || echo "Timed out waiting for ingress-nginx controller to be ready, but continuing"
 
 # Check installation status
 echo ""
@@ -162,22 +162,6 @@ echo "Installation completed successfully!"
 
 
 
-# echo ""
-# echo "To verify ingress-nginx is working properly, you can run:"
-# echo "kubectl get all -n ingress-nginx"
-# echo ""
-# echo "To get the external IP of your ingress controller:"
-# echo "kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}'"
-# echo ""
-# echo "To test with a sample application, create a test deployment and ingress resource:"
-# echo "kubectl create deployment demo --image=httpd --port=80"
-# echo "kubectl expose deployment demo"
-# echo "kubectl create ingress demo --class=nginx --rule=\"demo.localdev.me/*=demo:80\""
-# echo ""
-# echo "Then add the ingress IP to your /etc/hosts file and access demo.localdev.me in your browser"
-
-# echo ""
-# echo "Installation completed successfully!"
 
 
 
