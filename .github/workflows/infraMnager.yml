@@ -205,7 +205,7 @@ jobs:
             fi
           fi
           
-          echo "EKS cluster validation completed!""
+          echo "EKS cluster validation completed!"
 
 # name: Infrastructure Management Router
 # on:
