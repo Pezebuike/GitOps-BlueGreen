@@ -1,8 +1,8 @@
 project_name = "infra"
 environment = "dev"
-vpc_id = "vpc-0014f5e3762f3dc42"
+vpc_id = "vpc-0482c76de4aee215f"
 region = "eu-west-2"
-subnet_ids = [ "subnet-066eb2e1a46637d93","subnet-0b83fe74bb02a0acb" ]
+subnet_ids = ["subnet-0f7dea9373052c6b9","subnet-0d1e129e00a2953cd" ]
 cluster_name = "k8s-eks-cluster" 
 cluster_version = "1.31"    
 eks_managed_node_groups = {
