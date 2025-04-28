@@ -13,6 +13,8 @@ variable "cluster_version" {
     }
     }
 
+# Node group configuration
+# This variable defines the configuration for EKS managed node groups.
 
 variable "eks_managed_node_groups" {
     description = "Configuration for EKS managed node groups"
