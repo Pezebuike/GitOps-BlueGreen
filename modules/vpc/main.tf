@@ -165,16 +165,16 @@ EOF
     EOT
   }
 
-  # Run on destroy
+  # Run on destroy - FIXED to create directory first
   provisioner "local-exec" {
     when    = destroy
-    command = "echo 'Infrastructure destroyed on: $(date)' > ${path.module}/outputs/vpc_destruction_log.txt"
+    command = "mkdir -p ${path.module}/outputs && echo 'Infrastructure destroyed on: $(date)' > ${path.module}/outputs/vpc_destruction_log.txt"
   }
 
   # Add a triggers map to ensure the provisioner runs when resources change
   triggers = {
     vpc_id = aws_vpc.infra.id
-    subnet_count = "${var.public_subnet_count + var.private_subnet_count}"
+    subnet_count = var.public_subnet_count + var.private_subnet_count
     nat_gw_id = aws_nat_gateway.nat_gateway.id
   }
 }
