@@ -1,14 +1,11 @@
-output "region" {
-  value = var.region
-}
-
-output "project_name" {
-  value = var.project_name
-}
-
 output "vpc_id" {
   description = "The ID of the VPC"
   value       = aws_vpc.infra.id
+}
+
+output "vpc_cidr" {
+  description = "The CIDR block of the VPC"
+  value       = aws_vpc.infra.cidr_block
 }
 
 output "public_subnets" {
@@ -17,10 +14,19 @@ output "public_subnets" {
 
 }
 
-
 output "public_subnet_cidrs" {
   description = "List of CIDR blocks of public subnets"
   value       = aws_subnet.public_subnet[*].cidr_block
+}
+
+output "private_subnets" {
+  description = "List of private subnets created in the module"
+  value       = aws_subnet.private_subnet[*].id
+}
+
+output "private_subnet_cidrs" {
+  description = "List of CIDR blocks of private subnets"
+  value       = aws_subnet.private_subnet[*].cidr_block
 }
 
 output "public_route_table_id" {
@@ -42,4 +48,9 @@ output "availability_zones" {
 output "environment" {
   description = "Environment name"
   value       = var.environment
+}
+
+output "enable_dns_hostnames" {
+  description = "Enable DNS hostnames in the VPC"
+  value       = aws_vpc.infra.enable_dns_hostnames
 }

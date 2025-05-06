@@ -32,16 +32,20 @@ variable "project_name" {
     type        = string
     }
 
+variable "business_division" {
+    description = "Business division name (e.g., DevOps, Finance)"
+    type        = string
+    }
 variable "environment" {
     description = "Environment name (e.g., dev, prod)"
     type        = string
 
     }
-variable "tags" {
-    description = "Tags to apply to the resources"
-    type        = map(string)
-    default     = {}
-    }
+# variable "tags" {
+#     description = "Tags to apply to the resources"
+#     type        = map(string)
+#     default     = {}
+#     }
 variable "vpc_id" {
     description = "VPC ID where the EKS cluster will be created"
     type        = string

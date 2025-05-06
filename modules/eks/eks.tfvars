@@ -1,4 +1,5 @@
 project_name = "infra"
+business_division = "DevOps"
 environment = "dev"
 vpc_id = "vpc-0482c76de4aee215f"
 region = "eu-west-2"
