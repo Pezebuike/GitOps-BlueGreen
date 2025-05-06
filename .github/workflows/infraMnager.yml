@@ -110,6 +110,38 @@ jobs:
         run: terraform apply -auto-approve ${{ env.TF_PLAN_FILE }}
         working-directory: modules/${{ github.event.inputs.module }}
 
+      # New step: Display the output file content in logs
+      - name: Display Output File Content
+        if: success() && github.event.inputs.action == 'apply'
+        run: |
+          # Ensure the outputs directory exists
+          if [ -d "./outputs" ]; then
+            echo "Found outputs directory. Contents:"
+            ls -la ./outputs
+            
+            # Check if vpc_info.txt exists and display its content
+            if [ -f "./outputs/vpc_info.txt" ]; then
+              echo "====== Contents of vpc_info.txt ======"
+              cat ./outputs/vpc_info.txt
+              echo "====== End of vpc_info.txt ======"
+            else
+              echo "vpc_info.txt file not found"
+            fi
+          else
+            echo "outputs directory not found"
+          fi
+        working-directory: modules/${{ github.event.inputs.module }}
+
+      # New step: Upload output files as artifacts
+      - name: Upload Terraform Output Files
+        if: success() && github.event.inputs.action == 'apply'
+        uses: actions/upload-artifact@v3
+        with:
+          name: terraform-outputs-${{ github.event.inputs.module }}
+          path: modules/${{ github.event.inputs.module }}/outputs/
+          retention-days: 7
+          if-no-files-found: warn
+
       # Stage 1: Post-deployment installation for EKS
       - name: Run Post-Deployment Script for EKS
         if: ${{ github.event.inputs.run_post_deploy == 'true' && github.event.inputs.module == 'eks' && github.event.inputs.action == 'apply' }}
@@ -206,264 +238,3 @@ jobs:
           fi
           
           echo "EKS cluster validation completed!"
-
-# name: Infrastructure Management Router
-# on:
-#   workflow_dispatch:
-#     inputs:
-#       action:
-#         type: choice
-#         description: 'Action to perform'
-#         required: true
-#         options:
-#           - apply
-#           - destroy
-#       module:
-#         type: choice
-#         description: 'Module to manage'
-#         required: true
-#         options:
-#           - alb
-#           - eks
-#           - ec2
-#           - security_group
-#           - vpc
-#       resource_name:
-#         type: string
-#         description: 'Name of the resource'
-#         required: False
-#         default: ''
-#       run_post_deploy:
-#         type: choice
-#         description: 'Run post-deployment script (for EKS only)'
-#         required: true
-#         options:
-#           - 'false'
-#           - 'true'
-#         default: 'false'
-
-# permissions:
-#   contents: read
-#   id-token: write
-   
-# env:
-#   TF_PLAN_FILE: ${{ github.sha }}.tfplan
-#   aws_region: ${{ secrets.AWS_REGION }}
-#   BUCKET_TF_STATE: ${{ secrets.BUCKET_TF_STATE }}
-#   aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#   aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-# jobs:
-#   manage-infrastructure:
-#     name: "${{ github.event.inputs.action }} ${{ github.event.inputs.module }}"
-#     runs-on: ubuntu-latest
-#     steps:
-#       # Common steps
-#       - name: Checkout Code
-#         uses: actions/checkout@v4
-     
-#       - name: Set Up Terraform
-#         uses: hashicorp/setup-terraform@v2
-#         with:
-#           terraform_version: 1.7
-     
-#       - name: Configure AWS Credentials
-#         uses: aws-actions/configure-aws-credentials@v4
-#         with:
-#           aws-region: ${{ env.aws_region }}
-#           aws-access-key-id: ${{ env.aws_access_key_id }}
-#           aws-secret-access-key: ${{ env.aws_secret_access_key }}
-         
-#       # Apply-specific steps
-#       - name: Create Backend Config
-#         run: |
-#           cat > backend.tf << EOF
-#           terraform {
-#             backend "s3" {
-#               bucket         = "$BUCKET_TF_STATE"
-#               key            = "${{ github.event.inputs.module }}/${{ github.event.inputs.resource_name }}.tfstate"
-#               region         = "$aws_region"
-             
-#             }
-#           }
-#           EOF
-#         working-directory: modules/${{ github.event.inputs.module }}
-     
-#       - name: Terraform Init
-#         run: terraform init
-#         working-directory: modules/${{ github.event.inputs.module }}
-       
-#       # Conditional Apply steps
-#       - name: Terraform Plan (Apply)
-#         if: github.event.inputs.action == 'apply'
-#         run: terraform plan -out ${{ env.TF_PLAN_FILE }} -var-file="${{ github.event.inputs.module }}.tfvars"
-#         working-directory: modules/${{ github.event.inputs.module }}
-       
-#       # Conditional Destroy steps  
-#       - name: Terraform Plan (Destroy)
-#         if: github.event.inputs.action == 'destroy'
-#         run: terraform plan -destroy -out ${{ env.TF_PLAN_FILE }} -var-file="${{ github.event.inputs.module }}.tfvars"
-#         working-directory: modules/${{ github.event.inputs.module }}
-       
-#       # Apply with approval
-#       - name: Terraform Apply
-#         if: success()
-#         run: terraform apply -auto-approve ${{ env.TF_PLAN_FILE }}
-#         working-directory: modules/${{ github.event.inputs.module }}
-
-#       # Post-deployment steps for EKS
-#       - name: Run Post-Deployment Script for EKS
-#         if: ${{ github.event.inputs.run_post_deploy == 'true' && github.event.inputs.module == 'eks' && github.event.inputs.action == 'apply' }}
-#         working-directory: modules/${{ github.event.inputs.module }}
-#         run: |
-#           echo "Running post-deployment script for EKS cluster..."
-          
-#           # Install necessary tools for the script
-#           sudo apt-get update -y
-#           sudo apt-get install -y curl jq
-          
-#           # Copy post_deploy.sh from repo to module directory if needed
-#           if [ ! -f "post_deploy.sh" ]; then
-#             echo "Copying post_deploy.sh to module directory..."
-#             cp ../../post_deploy.sh ./
-#           fi
-          
-#           # Make script executable
-#           chmod +x post_deploy.sh
-          
-#           # Set environment variables for the script
-#           export PROJECT_NAME="${{ github.event.inputs.resource_name }}"
-#           export ENVIRONMENT="$(grep -E 'environment\s*=' ${{ github.event.inputs.module }}.tfvars | sed 's/.*=\s*"\(.*\)".*/\1/')"
-          
-#           # Get the cluster name directly from Terraform outputs
-#           export CLUSTER_NAME=$(terraform output -raw eks_cluster_name 2>/dev/null || echo "${PROJECT_NAME:-k8s}-${ENVIRONMENT:-dev}-eks-cluster")
-#           export REGION=${{ env.aws_region }}
-          
-#           # Run the post-deployment script
-#           ./post_deploy.sh
-          
-#           echo "Post-deployment script completed successfully!"
-          
-#       # Validate EKS cluster (if post-deploy was run)
-#       - name: Validate EKS Cluster
-#         if: ${{ github.event.inputs.run_post_deploy == 'true' && github.event.inputs.module == 'eks' && github.event.inputs.action == 'apply' }}
-#         working-directory: modules/${{ github.event.inputs.module }}
-#         run: |
-#           echo "Validating EKS cluster deployment..."
-          
-#           # Validate cluster connection
-#           kubectl get nodes
-#           kubectl get pods -A --no-headers | wc -l
-          
-#           echo "EKS cluster validation completed successfully!"
-
-
-
-
-
-
-
-
-
-# name: Infrastructure Management Router
-# on:
-#   workflow_dispatch:
-#     inputs:
-#       action:
-#         type: choice
-#         description: 'Action to perform'
-#         required: true
-#         options:
-#           - apply
-#           - destroy
-#       module:
-#         type: choice
-#         description: 'Module to manage'
-#         required: true
-#         options:
-#           - alb
-#           - eks
-#           - ec2
-#           - security_group
-#           - vpc
-#       resource_name:
-#         type: string
-#         description: 'Name of the resource'
-#         required: False
-#         default: ''
-#       run_post_deploy:
-#         type: choice
-#         description: 'Run post-deployment script (for EKS only)'
-#         required: true
-#         options:
-#           - 'false'
-#           - 'true'
-#         default: 'false'
-# permissions:
-#   contents: read
-#   id-token: write
-   
-# env:
-#   TF_PLAN_FILE: ${{ github.sha }}.tfplan
-#   aws_region: ${{ secrets.AWS_REGION }}
-#   BUCKET_TF_STATE: ${{ secrets.BUCKET_TF_STATE }}
-#   aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#   aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-# jobs:
-#   manage-infrastructure:
-#     name: "${{ github.event.inputs.action }} ${{ github.event.inputs.module }}"
-#     runs-on: ubuntu-latest
-#     steps:
-#       # Common steps
-#       - name: Checkout Code
-#         uses: actions/checkout@v4
-     
-#       - name: Set Up Terraform
-#         uses: hashicorp/setup-terraform@v2
-#         with:
-#           terraform_version: 1.7
-     
-#       - name: Configure AWS Credentials
-#         uses: aws-actions/configure-aws-credentials@v4
-#         with:
-#           aws-region: ${{ env.aws_region }}
-#           aws-access-key-id: ${{ env.aws_access_key_id }}
-#           aws-secret-access-key: ${{ env.aws_secret_access_key }}
-         
-#       # Apply-specific steps
-#       - name: Create Backend Config
-#         run: |
-#           cat > backend.tf << EOF
-#           terraform {
-#             backend "s3" {
-#               bucket         = "$BUCKET_TF_STATE"
-#               key            = "${{ github.event.inputs.module }}/${{ github.event.inputs.resource_name }}.tfstate"
-#               region         = "$aws_region"
-             
-#             }
-#           }
-#           EOF
-#         working-directory: modules/${{ github.event.inputs.module }}
-     
-#       - name: Terraform Init
-#         run: terraform init
-#         working-directory: modules/${{ github.event.inputs.module }}
-       
-#       # Conditional Apply steps
-#       - name: Terraform Plan (Apply)
-#         if: github.event.inputs.action == 'apply'
-#         run: terraform plan -out ${{ env.TF_PLAN_FILE }} -var-file="${{ github.event.inputs.module }}.tfvars"
-#         working-directory: modules/${{ github.event.inputs.module }}
-       
-#       # Conditional Destroy steps  
-#       - name: Terraform Plan (Destroy)
-#         if: github.event.inputs.action == 'destroy'
-#         run: terraform plan -destroy -out ${{ env.TF_PLAN_FILE }} -var-file="${{ github.event.inputs.module }}.tfvars"
-#         working-directory: modules/${{ github.event.inputs.module }}
-       
-#       # Apply with approval
-#       - name: Terraform Apply
-#         if: success()
-#         run: terraform apply -auto-approve ${{ env.TF_PLAN_FILE }}
-#         working-directory: modules/${{ github.event.inputs.module }}
-
