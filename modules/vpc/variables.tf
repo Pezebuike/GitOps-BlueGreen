@@ -8,7 +8,7 @@ variable "project_name" {
 }
 
 variable "business_division" {
-    description = "Business division name (e.g., DevOps, Finance)"
+    description = "Business division name"
     type        = string
 }
 
