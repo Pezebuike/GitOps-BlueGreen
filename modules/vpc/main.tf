@@ -140,8 +140,9 @@ resource "null_resource" "output_to_file" {
 
   # Execute command locally after the infrastructure is created
   provisioner "local-exec" {
+    # Use absolute path and simplified command
     command = <<-EOT
-      cat > vpc_info.txt << EOF
+      mkdir -p ${path.module}/outputs && cat > ${path.module}/outputs/vpc_info.txt << 'EOF'
 VPC Information:
 ----------------
 VPC ID: ${aws_vpc.infra.id}
@@ -164,13 +165,19 @@ EOF
     EOT
   }
 
-  # This will only run when terraform destroy is executed
+  # Run on destroy
   provisioner "local-exec" {
     when    = destroy
-    command = "echo 'Infrastructure destroyed on: $(date)' > vpc_destruction_log.txt"
+    command = "echo 'Infrastructure destroyed on: $(date)' > ${path.module}/outputs/vpc_destruction_log.txt"
+  }
+
+  # Add a triggers map to ensure the provisioner runs when resources change
+  triggers = {
+    vpc_id = aws_vpc.infra.id
+    subnet_count = "${var.public_subnet_count + var.private_subnet_count}"
+    nat_gw_id = aws_nat_gateway.nat_gateway.id
   }
 }
-
 # # Create a VPC with public subnets and an internet gateway
 
 # provider "aws" {

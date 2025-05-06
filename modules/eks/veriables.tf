@@ -33,11 +33,11 @@ variable "project_name" {
     }
 
 variable "business_division" {
-    description = "Business division name (e.g., DevOps, Finance)"
+    description = "Business division name "
     type        = string
     }
 variable "environment" {
-    description = "Environment name (e.g., dev, prod)"
+    description = "Environment name "
     type        = string
 
     }

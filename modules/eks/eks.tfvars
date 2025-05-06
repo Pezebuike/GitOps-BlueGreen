@@ -1,4 +1,4 @@
-project_name = "infra"
+project_name = "k8s-infra"
 business_division = "DevOps"
 environment = "dev"
 vpc_id = "vpc-0482c76de4aee215f"
@@ -10,8 +10,8 @@ eks_managed_node_groups = {
   primary = {
     instance_types = ["t3.medium"]
     min_size       = 1
-    max_size       = 3
-    desired_size   = 2
+    max_size       = 1
+    desired_size   = 1
   }
 }
 
