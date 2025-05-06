@@ -19,7 +19,7 @@ module "eks" {
   tags = merge(
     local.common_tags,
     {
-      Name = "${local.name}-ec2-${each.key}"
+      Name = "${local.name}-eks-cluster"
     }
   )
 }
