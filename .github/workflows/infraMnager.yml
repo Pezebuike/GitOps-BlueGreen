@@ -110,36 +110,70 @@ jobs:
         run: terraform apply -auto-approve ${{ env.TF_PLAN_FILE }}
         working-directory: modules/${{ github.event.inputs.module }}
 
-      # New step: Display the output file content in logs
+      # Display output file content in logs
       - name: Display Output File Content
         if: success() && github.event.inputs.action == 'apply'
         run: |
-          # Ensure the outputs directory exists
+          echo "Checking for output files in multiple locations..."
+          
+          # Check in the current directory
           if [ -d "./outputs" ]; then
-            echo "Found outputs directory. Contents:"
+            echo "Found outputs directory in current path. Contents:"
             ls -la ./outputs
             
-            # Check if vpc_info.txt exists and display its content
             if [ -f "./outputs/vpc_info.txt" ]; then
               echo "====== Contents of vpc_info.txt ======"
               cat ./outputs/vpc_info.txt
               echo "====== End of vpc_info.txt ======"
-            else
-              echo "vpc_info.txt file not found"
             fi
-          else
-            echo "outputs directory not found"
           fi
+          
+          # Check for the file in the root directory
+          if [ -f "vpc_info.txt" ]; then
+            echo "====== Contents of vpc_info.txt (root dir) ======"
+            cat vpc_info.txt
+            echo "====== End of vpc_info.txt ======"
+          fi
+          
+          # Find all vpc_info.txt files in this working directory and subdirectories
+          echo "Searching for all vpc_info.txt files..."
+          find . -name vpc_info.txt -type f -exec echo "Found file: {}" \; -exec cat {} \; -exec echo "======" \;
+          
+          # List complete directory structure for debugging
+          echo "Complete directory structure:"
+          find . -type f -name "*.txt" | sort
         working-directory: modules/${{ github.event.inputs.module }}
 
-      # New step: Upload output files as artifacts
+      # Copy output files to a predictable location
+      - name: Copy Output Files to Artifacts Directory
+        if: success() && github.event.inputs.action == 'apply'
+        run: |
+          # Create artifacts directory
+          mkdir -p $GITHUB_WORKSPACE/artifacts
+          
+          # Copy any vpc_info.txt files found
+          find . -name vpc_info.txt -type f -exec cp {} $GITHUB_WORKSPACE/artifacts/ \;
+          
+          # If no files found, create a placeholder
+          if [ ! -f "$GITHUB_WORKSPACE/artifacts/vpc_info.txt" ]; then
+            echo "No vpc_info.txt file found. Creating placeholder." > $GITHUB_WORKSPACE/artifacts/output_not_found.txt
+            
+            # Create terraform output as alternative
+            terraform output -json > $GITHUB_WORKSPACE/artifacts/terraform_output.json
+          fi
+          
+          # List artifacts
+          echo "Contents of artifacts directory:"
+          ls -la $GITHUB_WORKSPACE/artifacts
+        working-directory: modules/${{ github.event.inputs.module }}
+
+      # Upload artifacts using version 2 (more widely available)
       - name: Upload Terraform Output Files
         if: success() && github.event.inputs.action == 'apply'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: terraform-outputs-${{ github.event.inputs.module }}
-          path: modules/${{ github.event.inputs.module }}/outputs/
-          retention-days: 7
+          path: artifacts/
           if-no-files-found: warn
 
       # Stage 1: Post-deployment installation for EKS
