@@ -110,8 +110,8 @@ jobs:
         run: terraform apply -auto-approve ${{ env.TF_PLAN_FILE }}
         working-directory: modules/${{ github.event.inputs.module }}
 
-      # Display output file content in logs
-      - name: Display Output File Content
+      # Display output file content and save to terraform outputs
+      - name: Display and Save Output Files
         if: success() && github.event.inputs.action == 'apply'
         run: |
           echo "Checking for output files in multiple locations..."
@@ -125,6 +125,11 @@ jobs:
               echo "====== Contents of vpc_info.txt ======"
               cat ./outputs/vpc_info.txt
               echo "====== End of vpc_info.txt ======"
+              
+              # Save the vpc_info.txt content as a step output
+              echo "VPC_INFO<<EOF" >> $GITHUB_ENV
+              cat ./outputs/vpc_info.txt >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
             fi
           fi
           
@@ -133,7 +138,19 @@ jobs:
             echo "====== Contents of vpc_info.txt (root dir) ======"
             cat vpc_info.txt
             echo "====== End of vpc_info.txt ======"
+            
+            # If not already saved, save this file content
+            if [ -z "${VPC_INFO}" ]; then
+              echo "VPC_INFO<<EOF" >> $GITHUB_ENV
+              cat vpc_info.txt >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
+            fi
           fi
+          
+          # Save terraform outputs as a step output
+          echo "TERRAFORM_OUTPUTS<<EOF" >> $GITHUB_ENV
+          terraform output -json >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
           
           # Find all vpc_info.txt files in this working directory and subdirectories
           echo "Searching for all vpc_info.txt files..."
@@ -144,37 +161,29 @@ jobs:
           find . -type f -name "*.txt" | sort
         working-directory: modules/${{ github.event.inputs.module }}
 
-      # Copy output files to a predictable location
-      - name: Copy Output Files to Artifacts Directory
+      # Create summary with output information
+      - name: Create Workflow Summary
         if: success() && github.event.inputs.action == 'apply'
         run: |
-          # Create artifacts directory
-          mkdir -p $GITHUB_WORKSPACE/artifacts
+          echo "# Terraform Output Summary for ${{ github.event.inputs.module }}" >> $GITHUB_STEP_SUMMARY
+          echo "## Deployment Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Module**: ${{ github.event.inputs.module }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Resource Name**: ${{ github.event.inputs.resource_name || 'default' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp**: $(date)" >> $GITHUB_STEP_SUMMARY
           
-          # Copy any vpc_info.txt files found
-          find . -name vpc_info.txt -type f -exec cp {} $GITHUB_WORKSPACE/artifacts/ \;
-          
-          # If no files found, create a placeholder
-          if [ ! -f "$GITHUB_WORKSPACE/artifacts/vpc_info.txt" ]; then
-            echo "No vpc_info.txt file found. Creating placeholder." > $GITHUB_WORKSPACE/artifacts/output_not_found.txt
-            
-            # Create terraform output as alternative
-            terraform output -json > $GITHUB_WORKSPACE/artifacts/terraform_output.json
+          # Add VPC Info if available
+          if [ -n "${VPC_INFO}" ]; then
+            echo "## VPC Information" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "${VPC_INFO}" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
           fi
           
-          # List artifacts
-          echo "Contents of artifacts directory:"
-          ls -la $GITHUB_WORKSPACE/artifacts
-        working-directory: modules/${{ github.event.inputs.module }}
-
-      # Upload artifacts using version 2 (more widely available)
-      - name: Upload Terraform Output Files
-        if: success() && github.event.inputs.action == 'apply'
-        uses: actions/upload-artifact@v2
-        with:
-          name: terraform-outputs-${{ github.event.inputs.module }}
-          path: artifacts/
-          if-no-files-found: warn
+          # Add Terraform Outputs
+          echo "## Terraform Outputs" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "${TERRAFORM_OUTPUTS}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
       # Stage 1: Post-deployment installation for EKS
       - name: Run Post-Deployment Script for EKS
