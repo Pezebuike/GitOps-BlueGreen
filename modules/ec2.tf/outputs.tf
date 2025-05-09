@@ -22,11 +22,7 @@ output "instance_publicdns2" {
   value = tomap({for az, instance in aws_instance.myec2vm: az => instance.public_dns})
 }
 
-output "project_name" {
-  description = "Project Name"
-  value       = var.project_name
-  
-}
+
 
 /*
 # Additional Important Note about OUTPUTS when for_each used

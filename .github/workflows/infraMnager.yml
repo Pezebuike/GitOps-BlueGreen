@@ -1,4 +1,6 @@
 name: Infrastructure Management Router
+run-name: ${{ github.event.inputs.action }} ${{ github.event.inputs.module }} in ${{ github.event.inputs.environment }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -19,10 +21,19 @@ on:
           - ec2
           - security_group
           - vpc
+      environment:
+        type: choice
+        description: 'Environment to deploy to'
+        required: true
+        options:
+          - dev
+          - prod
+          - preprod
+        default: 'dev'
       resource_name:
         type: string
         description: 'Name of the resource'
-        required: False
+        required: false
         default: ''
       run_post_deploy:
         type: choice
@@ -44,240 +55,29 @@ on:
 permissions:
   contents: read
   id-token: write
-   
-env:
-  TF_PLAN_FILE: ${{ github.sha }}.tfplan
-  aws_region: ${{ secrets.AWS_REGION }}
-  BUCKET_TF_STATE: ${{ secrets.BUCKET_TF_STATE }}
-  aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
 jobs:
-  manage-infrastructure:
-    name: "${{ github.event.inputs.action }} ${{ github.event.inputs.module }}"
+  # Route to the appropriate workflow based on action
+  route_to_workflow:
     runs-on: ubuntu-latest
     steps:
-      # Common steps
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v4
-     
-      - name: Set Up Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.7
-     
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-region: ${{ env.aws_region }}
-          aws-access-key-id: ${{ env.aws_access_key_id }}
-          aws-secret-access-key: ${{ env.aws_secret_access_key }}
-         
-      # Apply-specific steps
-      - name: Create Backend Config
-        run: |
-          cat > backend.tf << EOF
-          terraform {
-            backend "s3" {
-              bucket         = "$BUCKET_TF_STATE"
-              key            = "${{ github.event.inputs.module }}/${{ github.event.inputs.resource_name }}.tfstate"
-              region         = "$aws_region"
-             
-            }
-          }
-          EOF
-        working-directory: modules/${{ github.event.inputs.module }}
-     
-      - name: Terraform Init
-        run: terraform init
-        working-directory: modules/${{ github.event.inputs.module }}
-       
-      # Conditional Apply steps
-      - name: Terraform Plan (Apply)
+      
+      - name: Route to apply workflow
         if: github.event.inputs.action == 'apply'
-        run: terraform plan -out ${{ env.TF_PLAN_FILE }} -var-file="${{ github.event.inputs.module }}.tfvars"
-        working-directory: modules/${{ github.event.inputs.module }}
-       
-      # Conditional Destroy steps  
-      - name: Terraform Plan (Destroy)
+        uses: ./.github/workflows/apply.yml
+        with:
+          module: ${{ github.event.inputs.module }}
+          environment: ${{ github.event.inputs.environment }}
+          resource_name: ${{ github.event.inputs.resource_name }}
+          run_post_deploy: ${{ github.event.inputs.run_post_deploy }}
+          run_ingress_test: ${{ github.event.inputs.run_ingress_test }}
+      
+      - name: Route to destroy workflow
         if: github.event.inputs.action == 'destroy'
-        run: terraform plan -destroy -out ${{ env.TF_PLAN_FILE }} -var-file="${{ github.event.inputs.module }}.tfvars"
-        working-directory: modules/${{ github.event.inputs.module }}
-       
-      # Apply with approval
-      - name: Terraform Apply
-        if: success()
-        run: terraform apply -auto-approve ${{ env.TF_PLAN_FILE }}
-        working-directory: modules/${{ github.event.inputs.module }}
-
-      # Display output file content and save to terraform outputs
-      - name: Display and Save Output Files
-        if: success() && github.event.inputs.action == 'apply'
-        run: |
-          echo "Checking for output files in multiple locations..."
-          
-          # Check in the current directory
-          if [ -d "./outputs" ]; then
-            echo "Found outputs directory in current path. Contents:"
-            ls -la ./outputs
-            
-            if [ -f "./outputs/vpc_info.txt" ]; then
-              echo "====== Contents of vpc_info.txt ======"
-              cat ./outputs/vpc_info.txt
-              echo "====== End of vpc_info.txt ======"
-              
-              # Save the vpc_info.txt content as a step output
-              echo "VPC_INFO<<EOF" >> $GITHUB_ENV
-              cat ./outputs/vpc_info.txt >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
-            fi
-          fi
-          
-          # Check for the file in the root directory
-          if [ -f "vpc_info.txt" ]; then
-            echo "====== Contents of vpc_info.txt (root dir) ======"
-            cat vpc_info.txt
-            echo "====== End of vpc_info.txt ======"
-            
-            # If not already saved, save this file content
-            if [ -z "${VPC_INFO}" ]; then
-              echo "VPC_INFO<<EOF" >> $GITHUB_ENV
-              cat vpc_info.txt >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
-            fi
-          fi
-          
-          # Save terraform outputs as a step output
-          echo "TERRAFORM_OUTPUTS<<EOF" >> $GITHUB_ENV
-          terraform output -json >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          
-          # Find all vpc_info.txt files in this working directory and subdirectories
-          echo "Searching for all vpc_info.txt files..."
-          find . -name vpc_info.txt -type f -exec echo "Found file: {}" \; -exec cat {} \; -exec echo "======" \;
-          
-          # List complete directory structure for debugging
-          echo "Complete directory structure:"
-          find . -type f -name "*.txt" | sort
-        working-directory: modules/${{ github.event.inputs.module }}
-
-      # Create summary with output information
-      - name: Create Workflow Summary
-        if: success() && github.event.inputs.action == 'apply'
-        run: |
-          echo "# Terraform Output Summary for ${{ github.event.inputs.module }}" >> $GITHUB_STEP_SUMMARY
-          echo "## Deployment Details" >> $GITHUB_STEP_SUMMARY
-          echo "- **Module**: ${{ github.event.inputs.module }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Resource Name**: ${{ github.event.inputs.resource_name || 'default' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Timestamp**: $(date)" >> $GITHUB_STEP_SUMMARY
-          
-          # Add VPC Info if available
-          if [ -n "${VPC_INFO}" ]; then
-            echo "## VPC Information" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "${VPC_INFO}" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          # Add Terraform Outputs
-          echo "## Terraform Outputs" >> $GITHUB_STEP_SUMMARY
-          echo '```json' >> $GITHUB_STEP_SUMMARY
-          echo "${TERRAFORM_OUTPUTS}" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-      # Stage 1: Post-deployment installation for EKS
-      - name: Run Post-Deployment Script for EKS
-        if: ${{ github.event.inputs.run_post_deploy == 'true' && github.event.inputs.module == 'eks' && github.event.inputs.action == 'apply' }}
-        working-directory: modules/${{ github.event.inputs.module }}
-        run: |
-          echo "Running post-deployment script for EKS cluster..."
-          
-          # Install necessary tools for the script
-          sudo apt-get update -y
-          sudo apt-get install -y curl jq
-          
-          # Copy post_deploy.sh from repo to module directory if needed
-          if [ ! -f "post_deploy.sh" ]; then
-            echo "Copying post_deploy.sh to module directory..."
-            cp ../../post_deploy.sh ./
-          fi
-          
-          # Make script executable
-          chmod +x post_deploy.sh
-          
-          # Set environment variables for the script - simplified
-          export EKS_CLUSTER_NAME="k8s-eks-cluster"
-          export AWS_REGION=${{ env.aws_region }}
-          
-          # Run the post-deployment script
-          ./post_deploy.sh || echo "Post-deployment script had errors but continuing"
-          
-          echo "Post-deployment script completed!"
-          
-      # Stage 2: Test ingress-nginx deployment
-      - name: Test Ingress-Nginx on EKS
-        if: ${{ github.event.inputs.run_ingress_test == 'true' && github.event.inputs.module == 'eks' && github.event.inputs.action == 'apply' }}
-        working-directory: modules/${{ github.event.inputs.module }}
-        run: |
-          echo "Running ingress-nginx testing script for EKS cluster..."
-          
-          # Copy test_ingress.sh from repo to module directory if needed
-          if [ ! -f "test_ingress.sh" ]; then
-            echo "Copying test_ingress.sh to module directory..."
-            cp ../../test_ingress.sh ./
-          fi
-          
-          # Make script executable
-          chmod +x test_ingress.sh
-          
-          # Set environment variables for the script
-          export EKS_CLUSTER_NAME="k8s-eks-cluster"
-          export AWS_REGION=${{ env.aws_region }}
-          export CLEANUP="true"
-          
-          # Make sure kubectl is configured for this cluster
-          aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_REGION || echo "Could not update kubeconfig but continuing"
-          
-          # Run the testing script
-          ./test_ingress.sh || echo "Test script had errors but continuing workflow"
-          
-          echo "Ingress-nginx testing completed!"
-
-      # Validate EKS cluster (regardless of which scripts were run)
-      - name: Validate EKS Cluster
-        if: ${{ (github.event.inputs.run_post_deploy == 'true' || github.event.inputs.run_ingress_test == 'true') && github.event.inputs.module == 'eks' && github.event.inputs.action == 'apply' }}
-        working-directory: modules/${{ github.event.inputs.module }}
-        run: |
-          echo "Validating EKS cluster deployment..."
-          
-          # Use fixed cluster name
-          export EKS_CLUSTER_NAME="k8s-eks-cluster"
-          export AWS_REGION=${{ env.aws_region }}
-          
-          # Ensure kubectl is configured
-          aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_REGION || echo "Could not update kubeconfig but continuing"
-          
-          # Validate cluster connection
-          kubectl get nodes || echo "Could not get nodes but continuing"
-          kubectl get pods -A --no-headers | wc -l || echo "Could not count pods but continuing"
-          
-          # If ingress-nginx was installed, show its status
-          if kubectl get namespace ingress-nginx &>/dev/null; then
-            echo "Ingress-Nginx Status:"
-            kubectl get pods -n ingress-nginx || echo "Could not get ingress-nginx pods"
-            kubectl get svc -n ingress-nginx || echo "Could not get ingress-nginx services"
-            
-            # Get external IP/hostname of ingress controller
-            EXTERNAL_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null)
-            if [ -z "$EXTERNAL_IP" ]; then
-              EXTERNAL_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
-            fi
-            
-            if [ -n "$EXTERNAL_IP" ]; then
-              echo "Ingress Controller Endpoint: $EXTERNAL_IP"
-            else
-              echo "Ingress Controller Endpoint not yet available"
-            fi
-          fi
-          
-          echo "EKS cluster validation completed!"
+        uses: ./.github/workflows/destroy.yml
+        with:
+          module: ${{ github.event.inputs.module }}
+          environment: ${{ github.event.inputs.environment }}
+          resource_name: ${{ github.event.inputs.resource_name }}
