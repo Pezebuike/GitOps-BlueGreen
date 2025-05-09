@@ -84,8 +84,24 @@ jobs:
           aws-access-key-id: ${{ env.aws_access_key_id }}
           aws-secret-access-key: ${{ env.aws_secret_access_key }}
          
+      # Check if module directory exists
+      - name: Check if module directory exists
+        id: check_dir
+        run: |
+          if [ -d "modules/${{ github.event.inputs.module }}" ]; then
+            echo "Module directory exists"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "ERROR: Module directory 'modules/${{ github.event.inputs.module }}' does not exist!"
+            echo "Available modules:"
+            ls -la modules/
+            echo "exists=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+      
       # Create backend configuration
       - name: Create Backend Config
+        if: steps.check_dir.outputs.exists == 'true'
         run: |
           cat > backend.tf << EOF
           terraform {
@@ -99,23 +115,42 @@ jobs:
         working-directory: modules/${{ github.event.inputs.module }}
      
       - name: Terraform Init
+        if: steps.check_dir.outputs.exists == 'true'
         run: terraform init
         working-directory: modules/${{ github.event.inputs.module }}
        
+      # Check if environment tfvars file exists
+      - name: Check if environment tfvars file exists
+        id: check_tfvars
+        if: steps.check_dir.outputs.exists == 'true'
+        run: |
+          if [ -f "${{ github.event.inputs.environment }}.tfvars" ]; then
+            echo "Environment tfvars file exists"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "WARNING: Environment tfvars file '${{ github.event.inputs.environment }}.tfvars' does not exist!"
+            echo "Available tfvars files:"
+            ls -la *.tfvars || echo "No tfvars files found"
+            echo "exists=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+        working-directory: modules/${{ github.event.inputs.module }}
+      
       # Conditional Apply steps
       - name: Terraform Plan (Apply)
-        if: github.event.inputs.action == 'apply'
+        if: github.event.inputs.action == 'apply' && steps.check_dir.outputs.exists == 'true' && steps.check_tfvars.outputs.exists == 'true'
         run: terraform plan -out ${{ env.TF_PLAN_FILE }} -var-file="${{ github.event.inputs.environment }}.tfvars"
         working-directory: modules/${{ github.event.inputs.module }}
        
       # Conditional Destroy steps  
       - name: Terraform Plan (Destroy)
-        if: github.event.inputs.action == 'destroy'
+        if: github.event.inputs.action == 'destroy' && steps.check_dir.outputs.exists == 'true' && steps.check_tfvars.outputs.exists == 'true'
         run: terraform plan -destroy -out ${{ env.TF_PLAN_FILE }} -var-file="${{ github.event.inputs.environment }}.tfvars"
         working-directory: modules/${{ github.event.inputs.module }}
        
       # Apply with approval
       - name: Terraform Apply
+        if: steps.check_dir.outputs.exists == 'true' && steps.check_tfvars.outputs.exists == 'true'
         run: terraform apply -auto-approve ${{ env.TF_PLAN_FILE }}
         working-directory: modules/${{ github.event.inputs.module }}
 
