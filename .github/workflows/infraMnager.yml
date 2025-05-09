@@ -88,16 +88,25 @@ jobs:
       - name: Check if module directory exists
         id: check_dir
         run: |
+          MODULE_PATH=""
+          
+          # Check for directory with the exact name
           if [ -d "modules/${{ github.event.inputs.module }}" ]; then
-            echo "Module directory exists"
-            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Module directory exists at modules/${{ github.event.inputs.module }}"
+            MODULE_PATH="modules/${{ github.event.inputs.module }}"
+          # Check for .tf extension
+          elif [ -d "modules/${{ github.event.inputs.module }}.tf" ]; then
+            echo "Module directory exists at modules/${{ github.event.inputs.module }}.tf"
+            MODULE_PATH="modules/${{ github.event.inputs.module }}.tf"
           else
-            echo "ERROR: Module directory 'modules/${{ github.event.inputs.module }}' does not exist!"
+            echo "ERROR: Module directory for '${{ github.event.inputs.module }}' does not exist!"
             echo "Available modules:"
             ls -la modules/
-            echo "exists=false" >> $GITHUB_OUTPUT
             exit 1
           fi
+          
+          echo "module_path=$MODULE_PATH" >> $GITHUB_OUTPUT
+          echo "exists=true" >> $GITHUB_OUTPUT
       
       # Create backend configuration
       - name: Create Backend Config
@@ -112,51 +121,58 @@ jobs:
             }
           }
           EOF
-        working-directory: modules/${{ github.event.inputs.module }}
+        working-directory: ${{ steps.check_dir.outputs.module_path }}
      
       - name: Terraform Init
         if: steps.check_dir.outputs.exists == 'true'
         run: terraform init
-        working-directory: modules/${{ github.event.inputs.module }}
+        working-directory: ${{ steps.check_dir.outputs.module_path }}
        
       # Check if environment tfvars file exists
       - name: Check if environment tfvars file exists
         id: check_tfvars
         if: steps.check_dir.outputs.exists == 'true'
         run: |
+          # Check for direct environment file
           if [ -f "${{ github.event.inputs.environment }}.tfvars" ]; then
-            echo "Environment tfvars file exists"
+            echo "Environment tfvars file exists: ${{ github.event.inputs.environment }}.tfvars"
+            echo "tfvars_file=${{ github.event.inputs.environment }}.tfvars" >> $GITHUB_OUTPUT
+            echo "exists=true" >> $GITHUB_OUTPUT
+          # Check for module-specific environment file
+          elif [ -f "${{ github.event.inputs.module }}-${{ github.event.inputs.environment }}.tfvars" ]; then
+            echo "Environment tfvars file exists: ${{ github.event.inputs.module }}-${{ github.event.inputs.environment }}.tfvars"
+            echo "tfvars_file=${{ github.event.inputs.module }}-${{ github.event.inputs.environment }}.tfvars" >> $GITHUB_OUTPUT
             echo "exists=true" >> $GITHUB_OUTPUT
           else
-            echo "WARNING: Environment tfvars file '${{ github.event.inputs.environment }}.tfvars' does not exist!"
+            echo "WARNING: Could not find environment tfvars file for '${{ github.event.inputs.environment }}'"
             echo "Available tfvars files:"
             ls -la *.tfvars || echo "No tfvars files found"
             echo "exists=false" >> $GITHUB_OUTPUT
             exit 1
           fi
-        working-directory: modules/${{ github.event.inputs.module }}
+        working-directory: ${{ steps.check_dir.outputs.module_path }}
       
       # Conditional Apply steps
       - name: Terraform Plan (Apply)
         if: github.event.inputs.action == 'apply' && steps.check_dir.outputs.exists == 'true' && steps.check_tfvars.outputs.exists == 'true'
-        run: terraform plan -out ${{ env.TF_PLAN_FILE }} -var-file="${{ github.event.inputs.environment }}.tfvars"
-        working-directory: modules/${{ github.event.inputs.module }}
+        run: terraform plan -out ${{ env.TF_PLAN_FILE }} -var-file="${{ steps.check_tfvars.outputs.tfvars_file }}"
+        working-directory: ${{ steps.check_dir.outputs.module_path }}
        
       # Conditional Destroy steps  
       - name: Terraform Plan (Destroy)
         if: github.event.inputs.action == 'destroy' && steps.check_dir.outputs.exists == 'true' && steps.check_tfvars.outputs.exists == 'true'
-        run: terraform plan -destroy -out ${{ env.TF_PLAN_FILE }} -var-file="${{ github.event.inputs.environment }}.tfvars"
-        working-directory: modules/${{ github.event.inputs.module }}
+        run: terraform plan -destroy -out ${{ env.TF_PLAN_FILE }} -var-file="${{ steps.check_tfvars.outputs.tfvars_file }}"
+        working-directory: ${{ steps.check_dir.outputs.module_path }}
        
       # Apply with approval
       - name: Terraform Apply
         if: steps.check_dir.outputs.exists == 'true' && steps.check_tfvars.outputs.exists == 'true'
         run: terraform apply -auto-approve ${{ env.TF_PLAN_FILE }}
-        working-directory: modules/${{ github.event.inputs.module }}
+        working-directory: ${{ steps.check_dir.outputs.module_path }}
 
       # Display output file content and save to terraform outputs
       - name: Display and Save Output Files
-        if: github.event.inputs.action == 'apply'
+        if: github.event.inputs.action == 'apply' && steps.check_dir.outputs.exists == 'true' && steps.check_tfvars.outputs.exists == 'true'
         run: |
           echo "Checking for output files in multiple locations..."
           
@@ -203,7 +219,7 @@ jobs:
           # List complete directory structure for debugging
           echo "Complete directory structure:"
           find . -type f -name "*.txt" | sort
-        working-directory: modules/${{ github.event.inputs.module }}
+        working-directory: ${{ steps.check_dir.outputs.module_path }}
 
       # Create summary with output information
       - name: Create Apply Workflow Summary
@@ -242,10 +258,10 @@ jobs:
           echo "- **Timestamp**: $(date)" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: Completed" >> $GITHUB_STEP_SUMMARY
 
-      # Stage 1: Post-deployment installation for EKS
+      # Post-deployment steps for EKS
       - name: Run Post-Deployment Script for EKS
-        if: ${{ github.event.inputs.run_post_deploy == 'true' && github.event.inputs.module == 'eks' && github.event.inputs.action == 'apply' }}
-        working-directory: modules/${{ github.event.inputs.module }}
+        if: ${{ github.event.inputs.run_post_deploy == 'true' && github.event.inputs.module == 'eks' && github.event.inputs.action == 'apply' && steps.check_dir.outputs.exists == 'true' && steps.check_tfvars.outputs.exists == 'true' }}
+        working-directory: ${{ steps.check_dir.outputs.module_path }}
         run: |
           echo "Running post-deployment script for EKS cluster..."
           
@@ -272,10 +288,10 @@ jobs:
           
           echo "Post-deployment script completed!"
           
-      # Stage 2: Test ingress-nginx deployment
+      # Test ingress-nginx deployment
       - name: Test Ingress-Nginx on EKS
-        if: ${{ github.event.inputs.run_ingress_test == 'true' && github.event.inputs.module == 'eks' && github.event.inputs.action == 'apply' }}
-        working-directory: modules/${{ github.event.inputs.module }}
+        if: ${{ github.event.inputs.run_ingress_test == 'true' && github.event.inputs.module == 'eks' && github.event.inputs.action == 'apply' && steps.check_dir.outputs.exists == 'true' && steps.check_tfvars.outputs.exists == 'true' }}
+        working-directory: ${{ steps.check_dir.outputs.module_path }}
         run: |
           echo "Running ingress-nginx testing script for EKS cluster..."
           
@@ -304,8 +320,8 @@ jobs:
 
       # Validate EKS cluster (regardless of which scripts were run)
       - name: Validate EKS Cluster
-        if: ${{ (github.event.inputs.run_post_deploy == 'true' || github.event.inputs.run_ingress_test == 'true') && github.event.inputs.module == 'eks' && github.event.inputs.action == 'apply' }}
-        working-directory: modules/${{ github.event.inputs.module }}
+        if: ${{ (github.event.inputs.run_post_deploy == 'true' || github.event.inputs.run_ingress_test == 'true') && github.event.inputs.module == 'eks' && github.event.inputs.action == 'apply' && steps.check_dir.outputs.exists == 'true' && steps.check_tfvars.outputs.exists == 'true' }}
+        working-directory: ${{ steps.check_dir.outputs.module_path }}
         run: |
           echo "Validating EKS cluster deployment..."
           
