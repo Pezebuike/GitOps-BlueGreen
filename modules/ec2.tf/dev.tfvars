@@ -1,17 +1,17 @@
 # Input Variables
 # AWS Region
-region = "us-east-1"
+region = "eu-west-2"
 
 
 # AWS EC2 Instance Type
-instance_type = "t3.micro"
+instance_type = "t2.micro"
 
 
 # AWS EC2 Instance Key Pair
 # variable = "terraform-key"
 
 # AWS EC2 Instance Security Group
-Security_Group = "sg-0a1b2c3d4e5f6g7h8"
+Security_Group = "sg-093c74b1501b45c83"
 
 project_name = "infra"
 
