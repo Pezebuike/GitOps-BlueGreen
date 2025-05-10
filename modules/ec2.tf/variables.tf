@@ -43,3 +43,8 @@ variable "business_division" {
   type        = string
   default     = ""
 }
+variable "security_group" {
+  description = "Security Group ID to be associated with EC2 Instance"
+  type        = string
+  default     = ""
+}

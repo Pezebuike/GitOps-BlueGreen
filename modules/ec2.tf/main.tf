@@ -4,7 +4,8 @@ resource "aws_instance" "myec2vm" {
   instance_type          = var.instance_type
   user_data              = file("${path.module}/app1-install.sh")
   key_name               = var.instance_keypair
-  vpc_security_group_ids = [aws_security_group.vpc-ssh.id, aws_security_group.vpc-web.id]
+  vpc_security_group_ids = [var.security_group]
+  # vpc_security_group_ids = [aws_security_group.vpc-ssh.id, aws_security_group.vpc-web.id]
  
   # Create EC2 Instance in all Availability Zones of a VPC  
   # for_each = toset(data.aws_availability_zones.my_azones.names)
