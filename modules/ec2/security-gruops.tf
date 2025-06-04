@@ -66,9 +66,3 @@ resource "aws_security_group" "vpc-web" {
   )
 }
 
-# Add vpc_id variable for security groups
-variable "vpc_id" {
-  description = "ID of the VPC where security groups and EC2 instances will be created"
-  type        = string
-  default = ""
-}
