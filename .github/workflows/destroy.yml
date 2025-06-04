@@ -1,16 +1,16 @@
 name: Destroy Infrastructure
 on:
   workflow_dispatch:
-    inputs:
-      module:
-        type: string
-        description: 'Module to destroy'
-        required: true
-      resource_name:
-        type: string
-        description: 'Name of the resource to destroy'
-        required: false
-        default: ''
+    # inputs:
+    #   module:
+    #     type: string
+    #     description: 'Module to destroy'
+    #     required: true
+    #   resource_name:
+    #     type: string
+    #     description: 'Name of the resource to destroy'
+    #     required: false
+    #     default: ''
 env:
   aws_region: ${{ secrets.AWS_REGION }}
   BUCKET_TF_STATE: ${{ secrets.BUCKET_TF_STATE }}
