@@ -11,7 +11,9 @@ instance_type = "t3.micro"
 # variable = "terraform-key"
 
 # AWS EC2 Instance Security Group
-Security_Group = "sg-0a1b2c3d4e5f6g7h8"
+Security_Group = "sg-08bf49e60d2c4aab5"
+
+vpc_id = "vpc-05cf292cb56e2c960"
 
 project_name = "infra"
 

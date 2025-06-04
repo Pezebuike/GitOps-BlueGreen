@@ -43,3 +43,10 @@ variable "business_division" {
   type        = string
   default     = ""
 }
+
+# Add vpc_id variable for security groups
+variable "vpc_id" {
+  description = "ID of the VPC where security groups and EC2 instances will be created"
+  type        = string
+  default     = ""
+}
