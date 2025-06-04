@@ -1,6 +1,6 @@
 # Input Variables
 # AWS Region
-region = "us-east-1"
+region = "eu-north-1"
 
 
 # AWS EC2 Instance Type
@@ -11,7 +11,7 @@ instance_type = "t3.micro"
 # variable = "terraform-key"
 
 # AWS EC2 Instance Security Group
-Security_Group = "sg-08bf49e60d2c4aab5"
+# Security_Group = "sg-08bf49e60d2c4aab5"
 
 vpc_id = "vpc-05cf292cb56e2c960"
 
