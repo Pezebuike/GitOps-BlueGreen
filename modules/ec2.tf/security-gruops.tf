@@ -4,6 +4,7 @@ resource "aws_security_group" "vpc-ssh" {
   description = "Allow SSH inbound traffic"
   vpc_id      = var.vpc_id
 
+  # Ingress rules for SSH access
   ingress {
     description = "SSH from anywhere"
     from_port   = 22
@@ -12,6 +13,7 @@ resource "aws_security_group" "vpc-ssh" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+# Egress rules for ssh outbound traffic
   egress {
     description = "Allow all outbound traffic"
     from_port   = 0
@@ -20,6 +22,7 @@ resource "aws_security_group" "vpc-ssh" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+# Tags for the security group
   tags = merge(
     local.common_tags,
     {
@@ -34,6 +37,7 @@ resource "aws_security_group" "vpc-web" {
   description = "Allow HTTP/HTTPS inbound traffic"
   vpc_id      = var.vpc_id
 
+# Ingress rules for HTTP and HTTPS access
   ingress {
     description = "HTTP from anywhere"
     from_port   = 80
@@ -50,6 +54,7 @@ resource "aws_security_group" "vpc-web" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+# Egress rules for web outbound traffic
   egress {
     description = "Allow all outbound traffic"
     from_port   = 0
@@ -58,6 +63,7 @@ resource "aws_security_group" "vpc-web" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+# Tags for the security group
   tags = merge(
     local.common_tags,
     {
@@ -66,8 +72,4 @@ resource "aws_security_group" "vpc-web" {
   )
 }
 
-# Add vpc_id variable for security groups
-variable "vpc_id" {
-  description = "ID of the VPC where security groups and EC2 instances will be created"
-  type        = string
-}
+

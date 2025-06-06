@@ -48,3 +48,10 @@ variable "security_group" {
   type        = string
   default     = ""
 }
+
+
+variable "vpc_id" {
+  description = "ID of the VPC where security groups and EC2 instances will be created"
+  type        = string
+  default     = ""
+}

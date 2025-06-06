@@ -2,6 +2,8 @@
 # AWS Region
 region = "eu-west-2"
 
+# AWS VPC ID
+vpc_id = "value-of-vpc-id"  
 
 # AWS EC2 Instance Type
 instance_type = "t2.micro"
